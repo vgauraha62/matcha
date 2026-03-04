@@ -12,6 +12,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	_ "image/gif"
@@ -305,10 +306,30 @@ func debugImageProtocol(format string, args ...interface{}) {
 	}
 }
 
+// remoteImageCache caches fetched remote images (URL -> base64 PNG string).
+var remoteImageCache sync.Map
+
+// nextImageID is an auto-incrementing counter for Kitty image IDs.
+var nextImageID uint32 = 1000
+
+// allocImageID returns a unique Kitty image ID.
+func allocImageID() uint32 {
+	id := nextImageID
+	nextImageID++
+	return id
+}
+
 func fetchRemoteBase64(url string) string {
 	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
 		return ""
 	}
+
+	// Check cache first
+	if cached, ok := remoteImageCache.Load(url); ok {
+		debugImageProtocol("remote cache hit url=%s", url)
+		return cached.(string)
+	}
+
 	client := &http.Client{Timeout: 5 * time.Second}
 	resp, err := client.Get(url)
 	if err != nil {
@@ -340,6 +361,7 @@ func fetchRemoteBase64(url string) string {
 
 	encoded := base64.StdEncoding.EncodeToString(buf.Bytes())
 	debugImageProtocol("remote fetch ok url=%s len=%d", url, len(encoded))
+	remoteImageCache.Store(url, encoded)
 	return encoded
 }
 
@@ -455,6 +477,102 @@ func renderInlineImage(payload string) string {
 	return ""
 }
 
+// imageRows calculates the number of terminal rows an image occupies.
+func imageRows(payload string) int {
+	rows := 1
+	if data, err := base64.StdEncoding.DecodeString(payload); err == nil {
+		if img, _, err := image.Decode(bytes.NewReader(data)); err == nil {
+			cellHeight := getTerminalCellSize()
+			h := img.Bounds().Dy()
+			rows = (h + cellHeight - 1) / cellHeight
+			if rows < 1 {
+				rows = 1
+			}
+			debugImageProtocol("image height: %d pixels, cell height: %d pixels, rows needed: %d", h, cellHeight, rows)
+		}
+	}
+	return rows
+}
+
+// kittyUploadImage uploads image data to the terminal with a unique ID using
+// the Kitty graphics protocol transmit action (a=t). The image is stored in
+// the terminal's memory and can be displayed later by ID without re-sending data.
+func kittyUploadImage(payload string, id uint32) {
+	if payload == "" {
+		return
+	}
+
+	const chunkSize = 4096
+	for offset := 0; offset < len(payload); offset += chunkSize {
+		end := offset + chunkSize
+		if end > len(payload) {
+			end = len(payload)
+		}
+		more := "0"
+		if end < len(payload) {
+			more = "1"
+		}
+
+		chunk := payload[offset:end]
+		if offset == 0 {
+			// a=t: transmit (upload) only, don't display yet
+			// i=ID: assign this image ID
+			fmt.Fprintf(os.Stdout, "\x1b_Gf=100,a=t,i=%d,q=2,m=%s;%s\x1b\\", id, more, chunk)
+		} else {
+			fmt.Fprintf(os.Stdout, "\x1b_Gm=%s;%s\x1b\\", more, chunk)
+		}
+	}
+	os.Stdout.Sync()
+}
+
+// kittyDisplayImage displays a previously uploaded image by its ID at the
+// current cursor position. This is very fast since no image data is transmitted.
+func kittyDisplayImage(id uint32) string {
+	// a=p: put (display) an already-uploaded image by ID
+	// C=1: cursor does not move
+	return fmt.Sprintf("\x1b_Ga=p,i=%d,q=2,C=1\x1b\\", id)
+}
+
+// iterm2ImageEscapeOnly returns only the iTerm2 image protocol escape sequence
+// without any row placeholders. Used for out-of-band rendering to stdout.
+func iterm2ImageEscapeOnly(payload string) string {
+	if payload == "" {
+		return ""
+	}
+	return fmt.Sprintf("\x1b]1337;File=inline=1:%s\x07", payload)
+}
+
+// RenderImageToStdout writes an image directly to stdout at the given screen
+// row using cursor positioning. This bypasses bubbletea's cell-based renderer
+// which cannot handle graphics protocol escape sequences.
+//
+// For Kitty-protocol terminals, images are uploaded once and then displayed by
+// ID on subsequent calls, making scroll rendering nearly instant.
+func RenderImageToStdout(placement *ImagePlacement, screenRow int) {
+	if placement.Base64 == "" {
+		return
+	}
+
+	useKitty := kittySupported() || ghosttySupported() || weztermSupported() || waystSupported() || konsoleSupported()
+	useIterm2 := iterm2Supported() || warpSupported()
+
+	if useKitty {
+		// Upload once, display by ID on subsequent renders
+		if !placement.Uploaded {
+			placement.ID = allocImageID()
+			kittyUploadImage(placement.Base64, placement.ID)
+			placement.Uploaded = true
+		}
+		seq := kittyDisplayImage(placement.ID)
+		fmt.Fprintf(os.Stdout, "\x1b[s\x1b[%d;1H%s\x1b[u", screenRow+1, seq)
+		os.Stdout.Sync()
+	} else if useIterm2 {
+		seq := iterm2ImageEscapeOnly(placement.Base64)
+		fmt.Fprintf(os.Stdout, "\x1b[s\x1b[%d;1H%s\x1b[u", screenRow+1, seq)
+		os.Stdout.Sync()
+	}
+}
+
 // expandImageRowPlaceholders replaces image row placeholders with actual newlines.
 func expandImageRowPlaceholders(text string) string {
 	re := regexp.MustCompile(regexp.QuoteMeta(imageRowPlaceholderPrefix) + `(\d+)` + regexp.QuoteMeta(imageRowPlaceholderSuffix))
@@ -476,8 +594,20 @@ type InlineImage struct {
 	Base64 string
 }
 
+// ImagePlacement holds the data needed to render an image at a specific
+// line in the email body. Images are rendered directly to stdout (bypassing
+// bubbletea's cell-based renderer which cannot handle graphics protocols).
+type ImagePlacement struct {
+	Line     int    // Line number in the processed body text where the image starts
+	Base64   string // Base64-encoded image data (PNG)
+	Rows     int    // Number of terminal rows the image occupies
+	Uploaded bool   // Whether the image has been uploaded to the terminal via Kitty ID
+	ID       uint32 // Kitty image ID for display-by-reference
+}
+
 // ProcessBodyWithInline renders the body and resolves CID inline images when provided.
-func ProcessBodyWithInline(rawBody string, inline []InlineImage, h1Style, h2Style, bodyStyle lipgloss.Style, disableImages bool) (string, error) {
+// Returns the rendered body text, image placements for out-of-band rendering, and any error.
+func ProcessBodyWithInline(rawBody string, inline []InlineImage, h1Style, h2Style, bodyStyle lipgloss.Style, disableImages bool) (string, []ImagePlacement, error) {
 	inlineMap := make(map[string]string, len(inline))
 	for _, img := range inline {
 		cid := strings.TrimSpace(img.CID)
@@ -494,11 +624,11 @@ func ProcessBodyWithInline(rawBody string, inline []InlineImage, h1Style, h2Styl
 
 // ProcessBody takes a raw email body, decodes it, and formats it as plain
 // text with terminal hyperlinks.
-func ProcessBody(rawBody string, h1Style, h2Style, bodyStyle lipgloss.Style, disableImages bool) (string, error) {
+func ProcessBody(rawBody string, h1Style, h2Style, bodyStyle lipgloss.Style, disableImages bool) (string, []ImagePlacement, error) {
 	return processBody(rawBody, nil, h1Style, h2Style, bodyStyle, disableImages)
 }
 
-func processBody(rawBody string, inline map[string]string, h1Style, h2Style, bodyStyle lipgloss.Style, disableImages bool) (string, error) {
+func processBody(rawBody string, inline map[string]string, h1Style, h2Style, bodyStyle lipgloss.Style, disableImages bool) (string, []ImagePlacement, error) {
 	decodedBody, err := decodeQuotedPrintable(rawBody)
 	if err != nil {
 		decodedBody = rawBody
@@ -508,7 +638,7 @@ func processBody(rawBody string, inline map[string]string, h1Style, h2Style, bod
 
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(htmlBody))
 	if err != nil {
-		return "", fmt.Errorf("could not parse email body: %w", err)
+		return "", nil, fmt.Errorf("could not parse email body: %w", err)
 	}
 
 	doc.Find("style, script").Remove()
@@ -571,7 +701,16 @@ func processBody(rawBody string, inline map[string]string, h1Style, h2Style, bod
 		s.ReplaceWithHtml(placeholder)
 	})
 
-	// Format links and images
+	// Format links and images.
+	// Collect image placements for out-of-band rendering (bubbletea v2's
+	// ultraviolet renderer cannot pass through graphics protocol sequences).
+	var imgIndex int
+	var pendingImages []struct {
+		index   int
+		payload string
+		rows    int
+	}
+
 	doc.Find("a").Each(func(i int, s *goquery.Selection) {
 		href, exists := s.Attr("href")
 		if !exists {
@@ -608,15 +747,24 @@ func processBody(rawBody string, inline map[string]string, h1Style, h2Style, bod
 			}
 
 			if payload != "" {
-				if rendered := renderInlineImage(payload); rendered != "" {
-					debugImageProtocol("rendered inline image src=%s len=%d dataURI=%t cid=%t (kitty=%t ghostty=%t iterm2=%t wezterm=%t wayst=%t warp=%t konsole=%t)", src, len(payload), strings.HasPrefix(src, "data:"), strings.HasPrefix(src, "cid:"), kittySupported(), ghosttySupported(), iterm2Supported(), weztermSupported(), waystSupported(), warpSupported(), konsoleSupported())
-					s.ReplaceWithHtml("\n" + rendered + "\n")
-					return
-				}
-				debugImageProtocol("payload present but renderer returned empty src=%s len=%d", src, len(payload))
-			} else {
-				debugImageProtocol("no payload for src=%s dataURI=%t cid=%t", src, strings.HasPrefix(src, "data:"), strings.HasPrefix(src, "cid:"))
+				rows := imageRows(payload)
+				debugImageProtocol("collected image placement src=%s rows=%d (kitty=%t ghostty=%t iterm2=%t wezterm=%t wayst=%t warp=%t konsole=%t)", src, rows, kittySupported(), ghosttySupported(), iterm2Supported(), weztermSupported(), waystSupported(), warpSupported(), konsoleSupported())
+
+				idx := imgIndex
+				imgIndex++
+				pendingImages = append(pendingImages, struct {
+					index   int
+					payload string
+					rows    int
+				}{idx, payload, rows})
+
+				// Insert a placeholder with blank lines for spacing.
+				// The image placement marker lets us find the line number later.
+				placeholder := fmt.Sprintf("\n%s%d%s\n", imageRowPlaceholderPrefix, rows, imageRowPlaceholderSuffix)
+				s.ReplaceWithHtml(fmt.Sprintf("\n[[MATCHA_IMG:%d]]%s", idx, placeholder))
+				return
 			}
+			debugImageProtocol("no payload for src=%s dataURI=%t cid=%t", src, strings.HasPrefix(src, "data:"), strings.HasPrefix(src, "cid:"))
 		} else {
 			debugImageProtocol("image protocol not supported for src=%s (kitty=%t ghostty=%t iterm2=%t wezterm=%t wayst=%t warp=%t konsole=%t)", src, kittySupported(), ghosttySupported(), iterm2Supported(), weztermSupported(), waystSupported(), warpSupported(), konsoleSupported())
 		}
@@ -636,6 +784,32 @@ func processBody(rawBody string, inline map[string]string, h1Style, h2Style, bod
 	// Now expand the image row placeholders to actual newlines
 	text = expandImageRowPlaceholders(text)
 
+	// Build image placements by finding the line numbers of image markers.
+	var placements []ImagePlacement
+	if len(pendingImages) > 0 {
+		lines := strings.Split(text, "\n")
+		imgMarkerRegex := regexp.MustCompile(`\[\[MATCHA_IMG:(\d+)\]\]`)
+		for lineNum, line := range lines {
+			if matches := imgMarkerRegex.FindStringSubmatch(line); matches != nil {
+				var idx int
+				fmt.Sscanf(matches[1], "%d", &idx)
+				for _, pi := range pendingImages {
+					if pi.index == idx {
+						placements = append(placements, ImagePlacement{
+							Line:   lineNum,
+							Base64: pi.payload,
+							Rows:   pi.rows,
+						})
+						break
+					}
+				}
+			}
+		}
+
+		// Remove the image markers from the text (leave the spacing)
+		text = imgMarkerRegex.ReplaceAllString(text, "")
+	}
+
 	// Replace quote placeholders with styled quote boxes
 	quoteRegex := regexp.MustCompile(`\[\[MATCHA_QUOTE:(\d+)\]\]`)
 	text = quoteRegex.ReplaceAllStringFunc(text, func(match string) string {
@@ -652,7 +826,7 @@ func processBody(rawBody string, inline map[string]string, h1Style, h2Style, bod
 	// Style quoted reply sections (for plain text > quotes)
 	text = styleQuotedReplies(text)
 
-	return bodyStyle.Render(text), nil
+	return bodyStyle.Render(text), placements, nil
 }
 
 // quoteBoxStyle is the style for the quoted reply box border
