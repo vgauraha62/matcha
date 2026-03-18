@@ -8,17 +8,17 @@ Go to **Settings > Theme** to browse available themes. A live preview panel on t
 
 Your selection is saved to `config.json` and persists across sessions.
 
-![Theme Settings](../assets/theme_settings.png)
+![Theme Settings](../assets/features/theme_settings.png)
 
 ## Built-in Themes
 
-| Theme | Description |
-|-------|-------------|
-| **Matcha** | The default green theme |
-| **Rose** | Soft pink and rose accents |
-| **Lavender** | Purple and violet tones |
-| **Ocean** | Cool blue palette |
-| **Peach** | Warm orange and peach tones |
+| Theme                | Description                                                             |
+| -------------------- | ----------------------------------------------------------------------- |
+| **Matcha**           | The default green theme                                                 |
+| **Rose**             | Soft pink and rose accents                                              |
+| **Lavender**         | Purple and violet tones                                                 |
+| **Ocean**            | Cool blue palette                                                       |
+| **Peach**            | Warm orange and peach tones                                             |
 | **Catppuccin Mocha** | Based on the popular [Catppuccin](https://catppuccin.com/) color scheme |
 
 ## Custom Themes
@@ -50,20 +50,20 @@ Create a file like `~/.config/matcha/themes/dracula.json`:
 
 ### Color Properties
 
-| Property | Used For |
-|----------|----------|
-| `accent` | Selected items, focused elements, primary highlights |
-| `accent_dark` | Borders, title backgrounds |
-| `accent_text` | Text on accent-colored backgrounds |
-| `secondary` | Help text, blurred/unfocused elements |
-| `subtle_text` | List headers, hints |
-| `muted_text` | Dates, timestamps |
-| `dim_text` | Sender names, secondary info |
-| `danger` | Delete confirmations, errors |
-| `warning` | Update notifications |
-| `tip` | Contextual tips |
-| `link` | Hyperlinks in email content |
-| `directory` | Directory names in the file picker |
-| `contrast` | Text on accent-colored backgrounds (e.g. active folder) |
+| Property      | Used For                                                |
+| ------------- | ------------------------------------------------------- |
+| `accent`      | Selected items, focused elements, primary highlights    |
+| `accent_dark` | Borders, title backgrounds                              |
+| `accent_text` | Text on accent-colored backgrounds                      |
+| `secondary`   | Help text, blurred/unfocused elements                   |
+| `subtle_text` | List headers, hints                                     |
+| `muted_text`  | Dates, timestamps                                       |
+| `dim_text`    | Sender names, secondary info                            |
+| `danger`      | Delete confirmations, errors                            |
+| `warning`     | Update notifications                                    |
+| `tip`         | Contextual tips                                         |
+| `link`        | Hyperlinks in email content                             |
+| `directory`   | Directory names in the file picker                      |
+| `contrast`    | Text on accent-colored backgrounds (e.g. active folder) |
 
 Colors can be specified as hex values (`#BD93F9`) or ANSI 256-color codes (`42`).

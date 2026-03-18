@@ -1,3 +1,8 @@
+---
+title: Usage
+sidebar_position: 3
+---
+
 # Usage
 
 ## First Launch
@@ -11,12 +16,14 @@ On first launch, Matcha will prompt you to configure an email account. You'll ne
 ## Keyboard Shortcuts
 
 ### Main Menu
+
 - `↑/↓` or `j/k` - Navigate menu items
 - `Enter` - Select option
 - `Esc` - Go back / Exit
 - `Ctrl+C` - Quit application
 
 ### Inbox View
+
 - `↑/↓` or `j/k` - Navigate emails
 - `←/→` or `h/l` - Switch between account tabs
 - `Enter` - Open selected email
@@ -27,6 +34,7 @@ On first launch, Matcha will prompt you to configure an email account. You'll ne
 - `Esc` - Back to main menu
 
 ### Email View
+
 - `↑/↓` or `j/k` - Scroll email content
 - `r` - Reply to email
 - `d` - Delete email
@@ -36,11 +44,13 @@ On first launch, Matcha will prompt you to configure an email account. You'll ne
 - `i` - Toggle images
 
 ### Attachment View (when focused)
+
 - `↑/↓` or `j/k` - Navigate attachments
 - `Enter` - Download and open attachment
 - `Tab` or `Esc` - Back to email body
 
 ### Composer
+
 - `Tab` / `Shift+Tab` - Navigate fields
 - `Enter` -
   - On "From" field: Select account (if multiple)
@@ -58,6 +68,7 @@ matcha update
 ```
 
 This command will:
+
 1. Check for the latest release on GitHub
 2. Detect your installation method (Homebrew, Snap, or binary)
 3. Update using the appropriate method

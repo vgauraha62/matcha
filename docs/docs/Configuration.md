@@ -1,3 +1,8 @@
+---
+title: Configuration
+sidebar_position: 5
+---
+
 # Configuration
 
 Configuration is stored in `~/.config/matcha/config.json`.

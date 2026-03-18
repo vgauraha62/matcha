@@ -1,6 +1,6 @@
 # Draft Management
 
-![Drafts](../assets/drafts.png)
+![Drafts](../assets/features/drafts.png)
 
 Manage your unfinished emails with ease.
 

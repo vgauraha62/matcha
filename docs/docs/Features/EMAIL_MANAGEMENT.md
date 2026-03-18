@@ -1,6 +1,6 @@
 # Email Management
 
-![settings](../assets/settings.png)
+![settings](../assets/features/settings.png)
 
 Matcha provides comprehensive tools for managing your emails directly from the terminal.
 
@@ -16,6 +16,7 @@ Matcha provides comprehensive tools for managing your emails directly from the t
 ## Rich Email Viewing
 
 Matcha supports rendering various email formats:
+
 - HTML email rendering with proper formatting.
 - Markdown support for plain-text emails.
 - Styled headers and body text.

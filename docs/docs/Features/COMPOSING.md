@@ -1,6 +1,6 @@
 # Composing Emails
 
-![composer](../assets/compose_email.png) ![Empty Composer](../assets/compose_empty.png)
+![composer](../assets/features/compose_email.png) ![Empty Composer](../assets/features/compose_empty.png)
 
 Matcha provides a clean, intuitive interface for writing emails.
 

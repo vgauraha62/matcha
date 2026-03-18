@@ -3,13 +3,14 @@ slug: /
 title: Matcha Documentation
 description: A modern, beautiful, and feature-rich email client for the terminal.
 hide_table_of_contents: true
+sidebar_position: 1
 ---
 
 # 🍵 Welcome to Matcha
 
 **Matcha** is a modern, beautiful, and feature-rich email client for the terminal, designed for speed and efficiency.
 
-![Matcha UI](assets/matchaui.png)
+![Matcha UI](assets/overview/matchaui.png)
 
 ## Getting Started
 
@@ -32,6 +33,7 @@ Matcha is packed with features to make email management in the terminal a breeze
 - [**Advanced**](./Features/ADVANCED.md) - Automatic updates, smart image rendering, and performance optimization.
 
 ### Image & Hyperlink Support
+
 - [Image Protocol Compatibility](./Features/Images.md)
 - [Hyperlink Compatibility](./Features/Hyperlinks.md)
 

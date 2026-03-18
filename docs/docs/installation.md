@@ -1,3 +1,8 @@
+---
+title: Installation Guide
+sidebar_position: 2
+---
+
 # Installation Guide
 
 Welcome to the installation guide for Matcha.
@@ -20,7 +25,7 @@ matcha
 ```
 
 > [!WARNING]
-> If you have the [*"other"* Matcha](https://github.com/piqoni/matcha) already installed, you will have to rename the executable to avoid conflicts.
+> If you have the [_"other"_ Matcha](https://github.com/piqoni/matcha) already installed, you will have to rename the executable to avoid conflicts.
 
 ### Manual Binary Download
 

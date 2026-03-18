@@ -9,16 +9,16 @@ generate_gif:
 	mv demo.gif public/assets/demo.gif
 
 generate_screenshots:
-	@mkdir -p docs/docs/assets/
+	@mkdir -p docs/docs/assets/features/
 	@for tape in screenshots/*.tape; do \
 		[ "$$(basename $$tape)" = "common.tape" ] && continue; \
 		name=$$(basename "$$tape" .tape); \
 		echo "==> Generating screenshot: $$name"; \
 		vhs "$$tape" || echo "Warning: $$name failed"; \
 	done
-	@mv screenshots/*.png docs/docs/assets/ 2>/dev/null || true
+	@mv screenshots/*.png docs/docs/assets/features/ 2>/dev/null || true
 	@rm -f screenshots/*.gif 2>/dev/null || true
-	@echo "Screenshots saved to public/assets/screenshots/"
+	@echo "Screenshots saved to docs/docs/assets/features/"
 
 build:
 	go build -o $(BUILD_DIR)/$(BINARY_NAME) .
