@@ -70,7 +70,8 @@ func RebuildStyles() {
 	activeTabStyle = lipgloss.NewStyle().Padding(0, 2).Foreground(t.Accent).Bold(true).Underline(true)
 	tabBarStyle = lipgloss.NewStyle().BorderStyle(lipgloss.NormalBorder()).BorderBottom(true).PaddingBottom(1).MarginBottom(1)
 	dateStyle = lipgloss.NewStyle().Foreground(t.MutedText)
-	senderStyle = lipgloss.NewStyle().Foreground(t.DimText).Bold(true)
+	unreadEmailStyle = lipgloss.NewStyle().Foreground(t.Accent).Bold(true)
+	readEmailStyle = lipgloss.NewStyle().Foreground(t.Secondary)
 
 	// folder_inbox.go
 	sidebarStyle = lipgloss.NewStyle().

@@ -186,15 +186,15 @@ type GoToAddMailingListMsg struct{}
 
 // GoToEditAccountMsg signals navigation to edit an existing account.
 type GoToEditAccountMsg struct {
-	AccountID      string
-	Provider       string
-	Name           string
-	Email          string
-	FetchEmail     string
-	IMAPServer     string
-	IMAPPort       int
-	SMTPServer     string
-	SMTPPort       int
+	AccountID  string
+	Provider   string
+	Name       string
+	Email      string
+	FetchEmail string
+	IMAPServer string
+	IMAPPort   int
+	SMTPServer string
+	SMTPPort   int
 }
 
 // GoToEditMailingListMsg signals navigation to edit an existing mailing list.
@@ -367,6 +367,20 @@ type EmailMovedMsg struct {
 	SourceFolder string
 	DestFolder   string
 	Err          error
+}
+
+// MarkEmailAsReadMsg signals that an email should be marked as read on the server.
+type MarkEmailAsReadMsg struct {
+	UID        uint32
+	AccountID  string
+	FolderName string
+}
+
+// EmailMarkedReadMsg signals that an email was marked as read.
+type EmailMarkedReadMsg struct {
+	UID       uint32
+	AccountID string
+	Err       error
 }
 
 // FetchFolderMoreEmailsMsg signals a request to fetch more emails from a folder (pagination).

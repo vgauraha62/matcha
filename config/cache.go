@@ -18,6 +18,7 @@ type CachedEmail struct {
 	Date      time.Time `json:"date"`
 	MessageID string    `json:"message_id"`
 	AccountID string    `json:"account_id"`
+	IsRead    bool      `json:"is_read"`
 }
 
 // EmailCache stores cached emails for all accounts.

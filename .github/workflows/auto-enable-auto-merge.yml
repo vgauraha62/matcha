@@ -11,6 +11,11 @@ permissions:
 
 jobs:
   enable-auto-merge:
+    # When a fork PR is opened, both pull_request_target and pull_request fire.
+    # Skip the pull_request run for fork PRs to avoid a duplicate (failing) job.
+    if: >-
+      github.event_name == 'pull_request_target' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
       - name: Enable Auto-Merge

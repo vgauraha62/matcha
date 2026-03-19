@@ -25,7 +25,8 @@ var (
 )
 
 var dateStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("243"))
-var senderStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("250")).Bold(true)
+var unreadEmailStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("42")).Bold(true)
+var readEmailStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 
 type item struct {
 	title, desc   string
@@ -34,6 +35,7 @@ type item struct {
 	accountID     string
 	accountEmail  string
 	date          time.Time
+	isRead        bool
 }
 
 func (i item) Title() string       { return i.title }
@@ -53,7 +55,14 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 
 	prefix := fmt.Sprintf("%d. ", index+1)
 	sender := parseSenderName(i.desc)
-	styledSender := senderStyle.Render(sender)
+	statusStyle := unreadEmailStyle
+	statusIcon := "\uf0e0"
+	if i.isRead {
+		statusStyle = readEmailStyle
+		statusIcon = "\uf2b6"
+	}
+	styledIcon := statusStyle.Render(statusIcon)
+	styledSender := statusStyle.Render(sender)
 	separator := " · "
 
 	// For "ALL" view, show account indicator instead of number
@@ -64,6 +73,11 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	// Format and right-align date
 	dateStr := formatRelativeDate(i.date)
 	styledDate := dateStyle.Render(dateStr)
+	if i.isRead {
+		styledDate = readEmailStyle.Render(dateStr)
+	} else {
+		styledDate = statusStyle.Render(dateStr)
+	}
 	dateWidth := lipgloss.Width(styledDate)
 
 	listWidth := m.Width()
@@ -80,9 +94,10 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	}
 
 	prefixWidth := lipgloss.Width(prefix)
+	iconWidth := lipgloss.Width(styledIcon) + 1
 	senderWidth := lipgloss.Width(styledSender)
 	sepWidth := len(separator)
-	subjectBudget := maxLeft - prefixWidth - senderWidth - sepWidth
+	subjectBudget := maxLeft - prefixWidth - iconWidth - senderWidth - sepWidth
 
 	subject := i.title
 	if subjectBudget < 4 {
@@ -94,8 +109,9 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 		}
 		subject += "…"
 	}
+	styledSubject := statusStyle.Render(subject)
 
-	str := prefix + styledSender + separator + subject
+	str := prefix + styledIcon + " " + styledSender + separator + styledSubject
 
 	// Pad to push date to the right
 	padding := listWidth - lipgloss.Width(str) - dateWidth - cursorWidth
@@ -308,6 +324,7 @@ func (m *Inbox) updateList() {
 			accountID:     email.AccountID,
 			accountEmail:  accountEmail,
 			date:          email.Date,
+			isRead:        email.IsRead,
 		}
 	}
 
@@ -684,6 +701,25 @@ func (m *Inbox) GetEmailAtIndex(index int) *fetcher.Email {
 
 func (m *Inbox) GetMailbox() MailboxKind {
 	return m.mailbox
+}
+
+// MarkEmailAsRead marks an email as read by UID and account ID, updating it in all stores.
+func (m *Inbox) MarkEmailAsRead(uid uint32, accountID string) {
+	for i := range m.allEmails {
+		if m.allEmails[i].UID == uid && m.allEmails[i].AccountID == accountID {
+			m.allEmails[i].IsRead = true
+			break
+		}
+	}
+	if emails, ok := m.emailsByAccount[accountID]; ok {
+		for i := range emails {
+			if emails[i].UID == uid {
+				emails[i].IsRead = true
+				break
+			}
+		}
+	}
+	m.updateList()
 }
 
 // RemoveEmail removes an email by UID and account ID

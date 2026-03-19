@@ -678,11 +678,30 @@ func (m *mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		// Mark as read in UI immediately and on the server
+		var markReadCmd tea.Cmd
+		if !email.IsRead {
+			m.markEmailAsReadInStores(msg.UID, msg.AccountID)
+
+			folderName := "INBOX"
+			if m.folderInbox != nil {
+				folderName = m.folderInbox.GetCurrentFolder()
+			}
+			account := m.config.GetAccountByID(msg.AccountID)
+			if account != nil {
+				markReadCmd = markEmailAsReadCmd(account, msg.UID, msg.AccountID, folderName)
+			}
+		}
+
 		// Find the index for the email view (used for display purposes)
 		emailIndex := m.getEmailIndex(msg.UID, msg.AccountID, msg.Mailbox)
 		emailView := tui.NewEmailView(*email, emailIndex, m.width, m.height, msg.Mailbox, m.config.DisableImages)
 		m.current = emailView
-		return m, m.current.Init()
+		cmds := []tea.Cmd{m.current.Init()}
+		if markReadCmd != nil {
+			cmds = append(cmds, markReadCmd)
+		}
+		return m, tea.Batch(cmds...)
 
 	case tui.ReplyToEmailMsg:
 		to := msg.Email.From
@@ -864,6 +883,12 @@ func (m *mainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, tea.Batch(m.current.Init(), archiveFolderEmailCmd(account, msg.UID, msg.AccountID, folderName, msg.Mailbox))
 
+	case tui.EmailMarkedReadMsg:
+		if msg.Err != nil {
+			log.Printf("Error marking email as read: %v", msg.Err)
+		}
+		return m, nil
+
 	case tui.EmailActionDoneMsg:
 		if msg.Err != nil {
 			log.Printf("Action failed: %v", msg.Err)
@@ -994,6 +1019,38 @@ func (m *mainModel) updateEmailBodyByUID(uid uint32, accountID string, mailbox t
 				break
 			}
 		}
+	}
+}
+
+func (m *mainModel) markEmailAsReadInStores(uid uint32, accountID string) {
+	for i := range m.emails {
+		if m.emails[i].UID == uid && m.emails[i].AccountID == accountID {
+			m.emails[i].IsRead = true
+			break
+		}
+	}
+	if emails, ok := m.emailsByAcct[accountID]; ok {
+		for i := range emails {
+			if emails[i].UID == uid {
+				emails[i].IsRead = true
+				break
+			}
+		}
+	}
+	// Update folder email cache
+	for folderName, folderEmails := range m.folderEmails {
+		for i := range folderEmails {
+			if folderEmails[i].UID == uid && folderEmails[i].AccountID == accountID {
+				folderEmails[i].IsRead = true
+				m.folderEmails[folderName] = folderEmails
+				go saveFolderEmailsToCache(folderName, folderEmails)
+				break
+			}
+		}
+	}
+	// Update the inbox UI
+	if m.folderInbox != nil {
+		m.folderInbox.GetInbox().MarkEmailAsRead(uid, accountID)
 	}
 }
 
@@ -1172,6 +1229,7 @@ func emailsToCache(emails []fetcher.Email) []config.CachedEmail {
 			Date:      email.Date,
 			MessageID: email.MessageID,
 			AccountID: email.AccountID,
+			IsRead:    email.IsRead,
 		})
 	}
 	return cached
@@ -1188,6 +1246,7 @@ func cacheToEmails(cached []config.CachedEmail) []fetcher.Email {
 			Date:      c.Date,
 			MessageID: c.MessageID,
 			AccountID: c.AccountID,
+			IsRead:    c.IsRead,
 		})
 	}
 	return emails
@@ -1222,6 +1281,7 @@ func saveEmailsToCache(emails []fetcher.Email) {
 			Date:      email.Date,
 			MessageID: email.MessageID,
 			AccountID: email.AccountID,
+			IsRead:    email.IsRead,
 		})
 
 		// Save sender as a contact
@@ -1521,6 +1581,13 @@ func fetchFolderEmailBodyCmd(cfg *config.Config, uid uint32, accountID string, f
 			AccountID:   accountID,
 			Mailbox:     mailbox,
 		}
+	}
+}
+
+func markEmailAsReadCmd(account *config.Account, uid uint32, accountID string, folderName string) tea.Cmd {
+	return func() tea.Msg {
+		err := fetcher.MarkEmailAsReadInMailbox(account, folderName, uid)
+		return tui.EmailMarkedReadMsg{UID: uid, AccountID: accountID, Err: err}
 	}
 }
 
