@@ -18,7 +18,7 @@
 </div> 
 
 > [!TIP]
-> There are [nightly releases](https://github.com/floatpane/matcha/releases/tag/nightly)!
+> There are [nightly releases](https://github.com/floatpane/matcha/releases/tag/nightlyv0)!
 
 **A powerful, feature-rich email client for your terminal.** Built with Go and the Bubble Tea TUI framework, Matcha brings a beautiful, modern email experience to the command line with support for rich content, multiple accounts, and advanced terminal features.
 
