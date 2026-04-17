@@ -8,10 +8,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"unsafe"
 
 	"github.com/floatpane/matcha/config"
-	"golang.org/x/sys/unix"
+	"golang.org/x/term"
 )
 
 func RunContactsExport(args []string) error {
@@ -153,40 +152,11 @@ func promptForPassword() (string, error) {
 }
 
 func readPassword() (string, error) {
-	fd := int(os.Stdin.Fd())
-
-	var oldUnixTermios unix.Termios
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, uintptr(fd), unix.TCGETS, uintptr(unsafe.Pointer(&oldUnixTermios)))
-	if errno != 0 {
-		// Not a TTY or ioctl failed - fall back to masked input
-		fmt.Print("(masked input not available) ")
-		var password string
-		if _, err := fmt.Scanln(&password); err != nil {
-			return "", err
-		}
-		return password, nil
-	}
-
-	newTermios := oldUnixTermios
-	newTermios.Lflag &^= unix.ECHO
-	_, _, errno = unix.Syscall(unix.SYS_IOCTL, uintptr(fd), unix.TCSETS, uintptr(unsafe.Pointer(&newTermios)))
-	if errno != 0 {
-		// Failed to disable echo - fall back to normal input
-		fmt.Print("(masked input not available) ")
-		var password string
-		if _, err := fmt.Scanln(&password); err != nil {
-			return "", err
-		}
-		return password, nil
-	}
-
-	defer func() {
-		unix.Syscall(unix.SYS_IOCTL, uintptr(fd), unix.TCSETS, uintptr(unsafe.Pointer(&oldUnixTermios)))
-	}()
-
-	var password string
-	if _, err := fmt.Scanln(&password); err != nil {
+	fmt.Print("(masked input) ")
+	password, err := term.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Println() // newline after password
+	if err != nil {
 		return "", err
 	}
-	return password, nil
+	return string(password), nil
 }
