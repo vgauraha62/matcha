@@ -105,8 +105,8 @@ type ContactsCache struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// contactsFile returns the full path to the contacts cache file.
-func contactsFile() (string, error) {
+// GetContactsCachePath returns the full path to the contacts cache file.
+func GetContactsCachePath() (string, error) {
 	dir, err := cacheDir()
 	if err != nil {
 		return "", err
@@ -116,7 +116,7 @@ func contactsFile() (string, error) {
 
 // SaveContactsCache saves contacts to the cache file.
 func SaveContactsCache(cache *ContactsCache) error {
-	path, err := contactsFile()
+	path, err := GetContactsCachePath()
 	if err != nil {
 		return err
 	}
@@ -133,7 +133,7 @@ func SaveContactsCache(cache *ContactsCache) error {
 
 // LoadContactsCache loads contacts from the cache file.
 func LoadContactsCache() (*ContactsCache, error) {
-	path, err := contactsFile()
+	path, err := GetContactsCachePath()
 	if err != nil {
 		return nil, err
 	}

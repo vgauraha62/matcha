@@ -3182,6 +3182,15 @@ func main() {
 		os.Exit(0)
 	}
 
+	// Contacts export CLI subcommand: matcha contacts export [flags]
+	if len(os.Args) > 1 && os.Args[1] == "contacts" && len(os.Args) > 2 && os.Args[2] == "export" {
+		if err := matchaCli.RunContactsExport(os.Args[3:]); err != nil {
+			fmt.Fprintf(os.Stderr, "contacts export failed: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
 	// Marketplace TUI subcommand: matcha marketplace
 	if len(os.Args) > 1 && os.Args[1] == "marketplace" {
 		mp := tui.NewMarketplace(true)
