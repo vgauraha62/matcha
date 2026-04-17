@@ -130,6 +130,51 @@ matcha install ~/Downloads/custom_plugin.lua
 
 Plugins are saved to `~/.config/matcha/plugins/` and loaded automatically on next startup. The file must have a `.lua` extension.
 
+## matcha contacts export
+
+Export your contacts cache to JSON or CSV format.
+
+```bash
+matcha contacts export [flags]
+```
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `-f` | Output format: `json` or `csv` (default: `json`) |
+| `-o` | Output file path. If omitted, prints to stdout |
+| `-h` | Show help |
+
+### Examples
+
+**Export as JSON to stdout:**
+
+```bash
+matcha contacts export
+```
+
+**Export as CSV to stdout:**
+
+```bash
+matcha contacts export -f csv
+```
+
+**Export to a file:**
+
+```bash
+matcha contacts export -o ~/contacts.json
+matcha contacts export -f csv -o ~/contacts.csv
+```
+
+If encryption is enabled, you will be prompted for your password before the contacts can be read.
+
+### Output Format
+
+**JSON** exports an array of contact objects with `name`, `email`, `last_used`, and `use_count` fields.
+
+**CSV** exports a header row (`name,email,last_used,use_count`) followed by one row per contact.
+
 ## matcha config
 
 Open a configuration file in your `$EDITOR` (falls back to `vi`).
